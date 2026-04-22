@@ -163,7 +163,8 @@ class VertexImagenEditor(ImageEditorProvider):
             rendered = self._extract_gemini_image(response)
             if rendered is None:
                 raise ProviderUnavailableError("Gemini image edit returned no image content.")
-            outputs.append(EditResult(image=rendered.convert("RGB")))
+            pil_image = self._to_pil_image(rendered)
+            outputs.append(EditResult(image=pil_image.convert("RGB")))
 
         return outputs
 
@@ -200,7 +201,7 @@ class VertexImagenEditor(ImageEditorProvider):
         as_image = getattr(part, "as_image", None)
         if callable(as_image):
             try:
-                return as_image()
+                return VertexImagenEditor._to_pil_image(as_image())
             except Exception:
                 pass
 
@@ -222,6 +223,30 @@ class VertexImagenEditor(ImageEditorProvider):
             raw = data
 
         return Image.open(BytesIO(raw))
+
+    @staticmethod
+    def _to_pil_image(image_obj: object) -> Image.Image:
+        if isinstance(image_obj, Image.Image):
+            return image_obj
+
+        image_bytes = getattr(image_obj, "image_bytes", None)
+        if image_bytes is None and isinstance(image_obj, dict):
+            image_bytes = image_obj.get("image_bytes") or image_obj.get("imageBytes")
+
+        if image_bytes is not None:
+            if isinstance(image_bytes, str):
+                import base64
+
+                raw = base64.b64decode(image_bytes)
+            else:
+                raw = image_bytes
+            return Image.open(BytesIO(raw))
+
+        pil_image = getattr(image_obj, "_pil_image", None)
+        if isinstance(pil_image, Image.Image):
+            return pil_image
+
+        raise ProviderUnavailableError(f"Unsupported Gemini image response type: {type(image_obj).__name__}")
 
     @staticmethod
     def _guidance_scale_for(request: GenerateRequest) -> int:
