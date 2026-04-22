@@ -13,6 +13,7 @@ from app.services.mask_service import MaskService
 from app.services.naming_service import NamingService
 from app.services.bigquery_service import BigQueryService
 from app.services.storage_service import StorageService
+from app.utils.errors import ProviderUnavailableError
 
 router = APIRouter(prefix="/api", tags=["generate"])
 
@@ -30,13 +31,16 @@ def generate_preview(payload: GenerateRequest) -> GenerateResponse:
     mask_stored = storage.save_image("masks", f"{payload.image_id}-{payload.jewelleryType.value}", mask_image)
 
     prompt = LuxuryPromptBuilder().build(payload)
-    results = ImagenService().generate(upload_path, mask_image, prompt, payload)
+    try:
+        results = ImagenService().generate(upload_path, mask_image, prompt, payload, analysis)
+    except ProviderUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     naming = NamingService()
     job_id = uuid.uuid4().hex
 
     generated_results = []
     for index, result in enumerate(results):
-        stored = storage.save_image("results", f"{job_id}-{index}", result.image)
+        stored = storage.save_image("results", f"{job_id}-{index}", result.image, suffix=".jpg")
         generated_results.append(
             GeneratedResult(
                 url=stored.url,

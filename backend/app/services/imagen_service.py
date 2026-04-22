@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import tempfile
 import uuid
+from io import BytesIO
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List
@@ -58,6 +59,18 @@ class VertexImagenEditor(ImageEditorProvider):
         if not self.is_ready():
             raise ProviderUnavailableError("Vertex Imagen configuration is incomplete.")
 
+        if self.settings.vertex_imagen_edit_model.startswith("gemini-"):
+            return self._edit_with_gemini(original_path, mask, prompt, request)
+
+        return self._edit_with_imagen(original_path, mask, prompt, request)
+
+    def _edit_with_imagen(
+        self,
+        original_path: Path,
+        mask: Image.Image,
+        prompt: str,
+        request: GenerateRequest,
+    ) -> List[EditResult]:
         try:
             import vertexai
             from vertexai.preview.vision_models import Image as VertexImage
@@ -104,6 +117,111 @@ class VertexImagenEditor(ImageEditorProvider):
             raise ProviderUnavailableError("Vertex Imagen returned no edited images.")
 
         return outputs
+
+    def _edit_with_gemini(
+        self,
+        original_path: Path,
+        mask: Image.Image,
+        prompt: str,
+        request: GenerateRequest,
+    ) -> List[EditResult]:
+        try:
+            from google import genai
+            from google.genai import types
+        except ImportError as exc:  # pragma: no cover
+            raise ProviderUnavailableError("Google Gen AI SDK is not installed in this runtime.") from exc
+
+        original_image = Image.open(original_path).convert("RGB")
+        mask_hint = self._mask_hint_image(original_image.size, mask)
+        client = genai.Client(
+            vertexai=True,
+            project=self.settings.google_cloud_project,
+            location=self.settings.google_cloud_location or "global",
+        )
+
+        instruction = (
+            f"{prompt} Use the second image as a strict edit mask guide: only modify the white highlighted region, "
+            "keep all other pixels unchanged, and produce a realistic luxury jewellery edit with natural materials, "
+            "shadow, perspective, and reflections."
+        )
+
+        outputs: List[EditResult] = []
+        for index in range(request.variants):
+            seed = (abs(hash((request.image_id, request.jewelleryType.value, request.style.value, index))) % 10_000_000) + 1
+            try:
+                response = client.models.generate_content(
+                    model=self.settings.vertex_imagen_edit_model,
+                    contents=[original_image, mask_hint, instruction],
+                    config=types.GenerateContentConfig(
+                        response_modalities=["IMAGE"],
+                        seed=seed,
+                    ),
+                )
+            except Exception as exc:  # pragma: no cover
+                raise ProviderUnavailableError(f"Gemini image edit request failed: {exc}") from exc
+
+            rendered = self._extract_gemini_image(response)
+            if rendered is None:
+                raise ProviderUnavailableError("Gemini image edit returned no image content.")
+            outputs.append(EditResult(image=rendered.convert("RGB")))
+
+        return outputs
+
+    @staticmethod
+    def _mask_hint_image(size: tuple[int, int], mask: Image.Image) -> Image.Image:
+        grayscale = mask.convert("L").resize(size)
+        rgba = Image.new("RGBA", size, (0, 0, 0, 255))
+        rgba.putalpha(grayscale)
+        overlay = Image.new("RGBA", size, (255, 255, 255, 0))
+        overlay.putalpha(grayscale)
+        return Image.alpha_composite(rgba, overlay).convert("RGB")
+
+    @staticmethod
+    def _extract_gemini_image(response: object) -> Image.Image | None:
+        parts = getattr(response, "parts", None)
+        if parts:
+            for part in parts:
+                image = VertexImagenEditor._image_from_part(part)
+                if image is not None:
+                    return image
+
+        candidates = getattr(response, "candidates", None) or []
+        for candidate in candidates:
+            content = getattr(candidate, "content", None)
+            candidate_parts = getattr(content, "parts", None) or []
+            for part in candidate_parts:
+                image = VertexImagenEditor._image_from_part(part)
+                if image is not None:
+                    return image
+        return None
+
+    @staticmethod
+    def _image_from_part(part: object) -> Image.Image | None:
+        as_image = getattr(part, "as_image", None)
+        if callable(as_image):
+            try:
+                return as_image()
+            except Exception:
+                pass
+
+        inline_data = getattr(part, "inline_data", None)
+        if inline_data is None:
+            return None
+
+        data = getattr(inline_data, "data", None)
+        if data is None and isinstance(inline_data, dict):
+            data = inline_data.get("data")
+        if data is None:
+            return None
+
+        if isinstance(data, str):
+            import base64
+
+            raw = base64.b64decode(data)
+        else:
+            raw = data
+
+        return Image.open(BytesIO(raw))
 
     @staticmethod
     def _guidance_scale_for(request: GenerateRequest) -> int:
@@ -268,8 +386,8 @@ class ImagenService:
         request: GenerateRequest,
         analysis: LandmarkAnalysis,
     ) -> List[EditResult]:
-        try:
+        if self.vertex.is_ready():
             return self.vertex.edit_image(original_path, mask, prompt, request, analysis)
-        except Exception as exc:
-            logger.warning("Falling back to preview renderer: %s", exc)
-            return self.fallback.edit_image(original_path, mask, prompt, request, analysis)
+
+        logger.warning("Vertex provider unavailable; using local preview renderer.")
+        return self.fallback.edit_image(original_path, mask, prompt, request, analysis)
