@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
-import { Camera, ChevronRight, Gem, Sparkles, Circle, ShieldCheck, ScanFace } from "lucide-react";
+import { Camera, ChevronRight, Download, Gem, Sparkles, Circle, ShieldCheck, ScanFace } from "lucide-react";
 
 import { useAurelium } from "@/hooks/useAurelium";
 import { analyzePortrait, generatePreview, resolveAssetUrl, uploadPortrait } from "@/services/api";
@@ -12,6 +12,7 @@ export function StudioPage() {
   const {
     upload,
     analysis,
+    results,
     setUpload,
     setAnalysis,
     setResults,
@@ -23,6 +24,8 @@ export function StudioPage() {
 
   const [previewUrl, setPreviewUrl] = useState<string | undefined>(upload?.original_url ? resolveAssetUrl(upload.original_url) : undefined);
   const [selectedStyle, setSelectedStyle] = useState<StyleType>("signature_minimal");
+  const [activeLook, setActiveLook] = useState(0);
+  const resultsRef = useRef<HTMLElement | null>(null);
 
   const categoryOptions: Array<{ id: JewelleryType; label: string; Icon: typeof Gem; description: string }> = [
     { id: "earrings", label: "Earrings", Icon: Gem, description: "Studs, drops, hoops, and luxury jhumka-inspired looks." },
@@ -69,15 +72,15 @@ export function StudioPage() {
     mutationFn: (payload: GenerateRequest) => generatePreview(payload),
     onSuccess: (response) => {
       setResults(response);
-      navigate("/results");
+      setActiveLook(0);
     },
   });
 
-  const loadingStep = useMemo(() => {
-    if (uploadMutation.isPending) return 0;
-    if (generateMutation.isPending) return 1;
-    return 2;
-  }, [uploadMutation.isPending, generateMutation.isPending]);
+  useEffect(() => {
+    if (results?.results?.length) {
+      resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [results]);
 
   const generateLooks = () => {
     if (!upload?.image_id) return;
@@ -100,6 +103,8 @@ export function StudioPage() {
     });
   };
 
+  const activeResult = results?.results?.[activeLook] ?? results?.results?.[0];
+
   return (
     <div className="min-h-screen bg-zinc-950 font-sans text-zinc-50 antialiased selection:bg-amber-200/30">
       <nav className="sticky top-0 z-50 flex w-full items-center justify-between border-b border-zinc-900/80 bg-zinc-950/90 px-5 py-4 backdrop-blur">
@@ -109,32 +114,32 @@ export function StudioPage() {
         <h1 className="font-serif text-xl uppercase tracking-[0.3em] text-zinc-100">Aurelium</h1>
         <div className="w-10" />
       </nav>
-      <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-6 md:px-6 md:py-10">
-        <section className="rounded-[2rem] border border-zinc-800 bg-[radial-gradient(circle_at_top,rgba(217,177,103,0.12),transparent_30%),linear-gradient(180deg,#17171a_0%,#0d0d10_100%)] p-6 md:p-10">
+      <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-5 md:px-6 md:py-8">
+        <section className="rounded-[1.8rem] border border-zinc-800 bg-[radial-gradient(circle_at_top,rgba(217,177,103,0.12),transparent_30%),linear-gradient(180deg,#17171a_0%,#0d0d10_100%)] p-5 md:p-8">
           <div className="max-w-3xl">
             <p className="text-xs uppercase tracking-[0.24em] text-amber-200/80">Private Jewellery Preview</p>
-            <h1 className="mt-4 font-serif text-4xl leading-tight text-zinc-100 md:text-6xl">
+            <h1 className="mt-3 font-serif text-3xl leading-tight text-zinc-100 md:text-5xl">
               Upload your portrait, choose a style, and preview refined luxury looks.
             </h1>
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-400 md:text-base">
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400 md:text-[15px] md:leading-7">
               Aurelium keeps the process simple. Begin with one portrait, select the jewellery category you want to explore, choose a style direction, and generate your curated try-on results in the final section below.
             </p>
           </div>
         </section>
 
-        <section className="grid gap-8 lg:grid-cols-[0.95fr_1.05fr]">
-          <div className="rounded-[2rem] border border-zinc-800 bg-zinc-900/60 p-5 md:p-6">
-            <div className="mb-5">
+        <section className="grid gap-5 lg:grid-cols-[0.76fr_1.24fr] xl:grid-cols-[0.72fr_1.28fr]">
+          <div className="rounded-[1.8rem] border border-zinc-800 bg-zinc-900/60 p-4 md:p-5">
+            <div className="mb-4">
               <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">Step 1</p>
-              <h2 className="mt-2 font-serif text-2xl text-zinc-100 md:text-3xl">Upload your portrait</h2>
-              <p className="mt-2 text-sm leading-7 text-zinc-400">
+              <h2 className="mt-2 font-serif text-xl text-zinc-100 md:text-2xl">Upload your portrait</h2>
+              <p className="mt-2 text-sm leading-6 text-zinc-400">
                 Use one portrait with a clear face. Visible neckline helps necklace previews. Visible hand helps ring previews.
               </p>
             </div>
 
             <button
               onClick={() => document.getElementById("portrait-upload")?.click()}
-              className="group relative flex min-h-[360px] w-full flex-col items-center justify-center gap-4 overflow-hidden rounded-[1.6rem] border border-dashed border-zinc-700 bg-zinc-950/40 transition-all duration-500 hover:border-amber-200/50 hover:bg-zinc-900/80"
+              className="group relative flex min-h-[260px] w-full flex-col items-center justify-center gap-4 overflow-hidden rounded-[1.4rem] border border-dashed border-zinc-700 bg-zinc-950/40 transition-all duration-500 hover:border-amber-200/50 hover:bg-zinc-900/80 md:min-h-[320px]"
             >
               <input
                 id="portrait-upload"
@@ -147,13 +152,13 @@ export function StudioPage() {
                 }}
               />
               {previewUrl ? (
-                <img src={previewUrl} alt="Portrait preview" className="h-full max-h-[560px] w-full rounded-[1.4rem] object-cover" />
+                <img src={previewUrl} alt="Portrait preview" className="h-full max-h-[360px] w-full rounded-[1.2rem] object-cover" />
               ) : (
                 <>
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-zinc-900 transition-transform duration-500 group-hover:scale-110">
-                    <Camera className="text-zinc-400 group-hover:text-amber-200/80" size={24} />
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-zinc-900 transition-transform duration-500 group-hover:scale-110">
+                    <Camera className="text-zinc-400 group-hover:text-amber-200/80" size={22} />
                   </div>
-                  <span className="text-sm uppercase tracking-widest text-zinc-400">Tap to Capture / Upload</span>
+                  <span className="text-xs uppercase tracking-[0.22em] text-zinc-400 md:text-sm">Tap to Capture / Upload</span>
                 </>
               )}
             </button>
@@ -167,12 +172,12 @@ export function StudioPage() {
             {uploadMutation.error ? <p className="mt-4 text-sm text-red-400">{String(uploadMutation.error)}</p> : null}
           </div>
 
-          <div className="space-y-8">
-            <section className="rounded-[2rem] border border-zinc-800 bg-zinc-900/60 p-5 md:p-6">
+          <div className="space-y-5">
+            <section className="rounded-[1.8rem] border border-zinc-800 bg-zinc-900/60 p-4 md:p-5">
               <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">Step 2</p>
-              <h2 className="mt-2 font-serif text-2xl text-zinc-100 md:text-3xl">Choose your focus</h2>
-              <p className="mt-2 text-sm leading-7 text-zinc-400">Select the jewellery category you want Aurelium to preview on your portrait.</p>
-              <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              <h2 className="mt-2 font-serif text-xl text-zinc-100 md:text-2xl">Choose your focus</h2>
+              <p className="mt-2 text-sm leading-6 text-zinc-400">Select the jewellery category you want Aurelium to preview on your portrait.</p>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 {categoryOptions.map((cat) => {
                   const active = selectedCategory === cat.id;
                   return (
@@ -180,24 +185,24 @@ export function StudioPage() {
                       key={cat.id}
                       type="button"
                       onClick={() => setSelectedCategory(cat.id)}
-                      className={`rounded-[1.4rem] border p-5 text-left transition-all duration-300 ${
+                      className={`rounded-[1.25rem] border p-4 text-left transition-all duration-300 ${
                         active ? "border-amber-200/60 bg-amber-200/8" : "border-zinc-800 bg-zinc-950/40 hover:border-zinc-700"
                       }`}
                     >
-                      <cat.Icon className="mb-4 h-6 w-6 text-amber-200/80" strokeWidth={1.5} />
-                      <p className="font-serif text-xl text-zinc-100">{cat.label}</p>
-                      <p className="mt-2 text-sm leading-6 text-zinc-400">{cat.description}</p>
+                      <cat.Icon className="mb-3 h-5 w-5 text-amber-200/80" strokeWidth={1.5} />
+                      <p className="font-serif text-lg text-zinc-100">{cat.label}</p>
+                      <p className="mt-2 text-sm leading-5 text-zinc-400">{cat.description}</p>
                     </button>
                   );
                 })}
               </div>
             </section>
 
-            <section className="rounded-[2rem] border border-zinc-800 bg-zinc-900/60 p-5 md:p-6">
+            <section className="rounded-[1.8rem] border border-zinc-800 bg-zinc-900/60 p-4 md:p-5">
               <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">Step 3</p>
-              <h2 className="mt-2 font-serif text-2xl text-zinc-100 md:text-3xl">Choose your style</h2>
-              <p className="mt-2 text-sm leading-7 text-zinc-400">Pick the style direction you want the generated looks to follow.</p>
-              <div className="mt-6 grid gap-4 md:grid-cols-2">
+              <h2 className="mt-2 font-serif text-xl text-zinc-100 md:text-2xl">Choose your style</h2>
+              <p className="mt-2 text-sm leading-6 text-zinc-400">Pick the style direction you want the generated looks to follow.</p>
+              <div className="mt-5 grid gap-3 md:grid-cols-2">
                 {styleOptions.map((style) => {
                   const active = selectedStyle === style.id;
                   return (
@@ -205,34 +210,79 @@ export function StudioPage() {
                       key={style.id}
                       type="button"
                       onClick={() => setSelectedStyle(style.id)}
-                      className={`rounded-[1.4rem] border p-5 text-left transition-all duration-300 ${
+                      className={`rounded-[1.25rem] border p-4 text-left transition-all duration-300 ${
                         active ? "border-amber-200/60 bg-amber-200/8" : "border-zinc-800 bg-zinc-950/40 hover:border-zinc-700"
                       }`}
                     >
-                      <p className="font-serif text-xl text-zinc-100">{style.label}</p>
-                      <p className="mt-2 text-sm leading-6 text-zinc-400">{style.copy}</p>
+                      <p className="font-serif text-lg text-zinc-100">{style.label}</p>
+                      <p className="mt-2 text-sm leading-5 text-zinc-400">{style.copy}</p>
                     </button>
                   );
                 })}
               </div>
             </section>
 
-            <section className="rounded-[2rem] border border-zinc-800 bg-zinc-900/60 p-5 md:p-6">
+            <section className="rounded-[1.8rem] border border-zinc-800 bg-zinc-900/60 p-4 md:p-5">
               <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">Step 4</p>
-              <h2 className="mt-2 font-serif text-2xl text-zinc-100 md:text-3xl">Generate your looks</h2>
-              <p className="mt-2 text-sm leading-7 text-zinc-400">
+              <h2 className="mt-2 font-serif text-xl text-zinc-100 md:text-2xl">Generate your looks</h2>
+              <p className="mt-2 text-sm leading-6 text-zinc-400">
                 Aurelium will create a small curated set of premium previews based on your portrait, chosen category, and style direction.
               </p>
               <button
                 onClick={generateLooks}
                 disabled={!upload?.image_id || generateMutation.isPending}
-                className="mt-6 inline-flex w-full items-center justify-center gap-3 rounded-full bg-zinc-100 px-6 py-4 text-sm font-medium uppercase tracking-widest text-zinc-900 transition-all duration-300 hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+                className="mt-5 inline-flex w-full items-center justify-center gap-3 rounded-full bg-zinc-100 px-6 py-3.5 text-sm font-medium uppercase tracking-[0.2em] text-zinc-900 transition-all duration-300 hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {generateMutation.isPending ? <Sparkles size={16} className="animate-pulse" /> : <ChevronRight size={16} />}
                 {generateMutation.isPending ? "Generating Looks" : "Generate Output"}
               </button>
               {generateMutation.error ? <p className="mt-4 text-sm text-red-400">{String(generateMutation.error)}</p> : null}
             </section>
+
+            {results?.results?.length && activeResult ? (
+              <section ref={resultsRef} className="rounded-[1.8rem] border border-zinc-800 bg-zinc-900/60 p-4 md:p-5">
+                <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">Step 5</p>
+                <h2 className="mt-2 font-serif text-xl text-zinc-100 md:text-2xl">Review your generated preview</h2>
+                <p className="mt-2 text-sm leading-6 text-zinc-400">
+                  Compare the original portrait with the refined jewellery result below. Everything stays on one page for faster review.
+                </p>
+                <div className="mt-5 grid gap-3 xl:grid-cols-[1.05fr_0.95fr]">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="overflow-hidden rounded-[1.25rem] border border-zinc-800 bg-zinc-950/50">
+                      <div className="border-b border-zinc-800 px-4 py-2.5 text-xs uppercase tracking-[0.18em] text-zinc-500">Original</div>
+                      <img src={previewUrl} alt="Uploaded portrait" className="aspect-[4/5] w-full object-cover" />
+                    </div>
+                    <div className="overflow-hidden rounded-[1.25rem] border border-zinc-800 bg-zinc-950/50">
+                      <div className="border-b border-zinc-800 px-4 py-2.5 text-xs uppercase tracking-[0.18em] text-zinc-500">Generated</div>
+                      <img src={resolveAssetUrl(activeResult.url)} alt={activeResult.title} className="aspect-[4/5] w-full object-cover" />
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    {results.results.map((result, index) => (
+                      <button
+                        key={result.url}
+                        type="button"
+                        onClick={() => setActiveLook(index)}
+                        className={`w-full rounded-[1.2rem] border px-4 py-3 text-left transition-all duration-300 ${
+                          activeLook === index ? "border-amber-200/60 bg-amber-200/8" : "border-zinc-800 bg-zinc-950/40 hover:border-zinc-700"
+                        }`}
+                      >
+                        <p className="font-serif text-lg text-zinc-100">{result.title}</p>
+                        <p className="mt-1 text-sm leading-5 text-zinc-400">Variation {index + 1} for your selected category and style.</p>
+                      </button>
+                    ))}
+                    <a
+                      href={resolveAssetUrl(activeResult.url)}
+                      download
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-zinc-100 px-5 py-3.5 text-sm uppercase tracking-[0.18em] text-zinc-900 transition-colors hover:bg-white"
+                    >
+                      <Download size={14} />
+                      Download Result
+                    </a>
+                  </div>
+                </div>
+              </section>
+            ) : null}
           </div>
         </section>
       </main>

@@ -30,14 +30,17 @@ class MaskService:
         elif request.jewelleryType == JewelleryType.necklace:
             neck_x, neck_y = analysis.anchors["neck_center"]
             chest_x, chest_y = analysis.anchors["chest_center"]
-            width_span = self._scale_size(request.scale.value, base=width * 0.22)
-            thickness = self._scale_size(request.scale.value, base=height * 0.015)
-            center = (int(neck_x), int(chest_y - thickness))
-            axes = (max(1, int(width_span)), max(1, int(width_span * 0.42)))
-            cv2.ellipse(mask, center, axes, 0, 205, 335, 255, thickness=max(6, int(thickness)))
+            face_width = analysis.faces[0].box.width if analysis.faces else width * 0.28
+            width_span = self._scale_size(request.scale.value, base=min(width * 0.16, face_width * 0.95))
+            thickness = self._scale_size(request.scale.value, base=height * 0.01)
+            center_y = neck_y + int((chest_y - neck_y) * 0.42)
+            center = (int(neck_x), int(center_y))
+            axes = (max(1, int(width_span)), max(1, int(width_span * 0.25)))
+            cv2.ellipse(mask, center, axes, 0, 208, 332, 255, thickness=max(5, int(thickness)))
             if request.variant in {"pendant", "solitaire_drop"}:
-                cv2.circle(mask, (chest_x, chest_y + int(thickness * 1.8)), max(7, int(thickness * 1.4)), 255, -1)
-            boxes["necklace"] = box_from_center(neck_x, chest_y, width_span * 2.1, width_span * 1.0, analysis.image_size)
+                pendant_y = chest_y - int(thickness * 1.2)
+                cv2.circle(mask, (chest_x, pendant_y), max(7, int(thickness * 1.8)), 255, -1)
+            boxes["necklace"] = box_from_center(neck_x, chest_y, width_span * 1.9, width_span * 0.95, analysis.image_size)
 
         elif request.jewelleryType == JewelleryType.nose_pin:
             side = request.placement.side or analysis.faces[0].nostril_side

@@ -76,13 +76,13 @@ class StorageService:
         object_name = f"{category}/{image_id}{suffix}"
         if self.storage_mode == "gcs":
             path = Path(tempfile.gettempdir()) / f"{image_id}{suffix}"
-            image.save(path)
+            self._write_image(path, image, suffix)
             self._upload_file(path, object_name)
             return StoredObject(path=path, url=self._gcs_url(object_name))
 
         path = self.root / object_name
         path.parent.mkdir(parents=True, exist_ok=True)
-        image.save(path)
+        self._write_image(path, image, suffix)
         return StoredObject(path=path, url=self._local_url(path))
 
     def save_json(self, category: str, file_name: str, payload: Any) -> StoredObject:
@@ -119,3 +119,10 @@ class StorageService:
     def _upload_file(self, path: Path, object_name: str, content_type: str | None = None) -> None:
         blob = self._bucket().blob(object_name)
         blob.upload_from_filename(path, content_type=content_type)
+
+    def _write_image(self, path: Path, image: Image.Image, suffix: str) -> None:
+        normalized = suffix.lower()
+        if normalized in {".jpg", ".jpeg"}:
+            image.convert("RGB").save(path, format="JPEG", quality=88, optimize=True, progressive=True)
+            return
+        image.save(path)

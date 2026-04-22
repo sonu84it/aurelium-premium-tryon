@@ -20,6 +20,7 @@ export function ResultsPage() {
   } = useAurelium();
   const [activeLook, setActiveLook] = useState(0);
   const [isRefineOpen, setIsRefineOpen] = useState(false);
+  const [previewLoadFailed, setPreviewLoadFailed] = useState(false);
 
   if (!upload?.original_url || !results) {
     return <Navigate to="/studio" replace />;
@@ -86,56 +87,68 @@ export function ResultsPage() {
       <nav className="sticky top-0 z-20 flex w-full justify-center border-b border-zinc-900/70 bg-zinc-950/80 p-5 backdrop-blur">
         <h1 className="font-serif text-lg uppercase tracking-[0.3em] text-zinc-100 md:text-xl">Aurelium</h1>
       </nav>
-      <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-6 md:py-10">
+      <main className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-5 md:px-6 md:py-8">
         <section className="text-center">
           <p className="mb-2 text-xs uppercase tracking-[0.2em] text-amber-200/80">{selectedCategory.replace("_", " ")}</p>
-          <h2 className="font-serif text-3xl text-zinc-100 md:text-5xl">{lookLabels[activeLook]?.label ?? featured.title}</h2>
-          <p className="mt-3 text-sm font-light text-zinc-400 md:text-base">{lookLabels[activeLook]?.desc ?? featured.title}</p>
+          <h2 className="font-serif text-2xl text-zinc-100 md:text-4xl">{lookLabels[activeLook]?.label ?? featured.title}</h2>
+          <p className="mt-2 text-sm font-light text-zinc-400 md:text-[15px]">{lookLabels[activeLook]?.desc ?? featured.title}</p>
         </section>
 
-        <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-          <div className="overflow-hidden rounded-[2rem] border border-zinc-800 bg-zinc-900/60">
+        <section className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
+          <div className="overflow-hidden rounded-[1.8rem] border border-zinc-800 bg-zinc-900/60">
             <div className="grid gap-3 p-3 md:grid-cols-2">
-              <div className="overflow-hidden rounded-[1.5rem] border border-zinc-800 bg-zinc-950/70">
-                <div className="border-b border-zinc-800 px-4 py-3 text-xs uppercase tracking-[0.22em] text-zinc-500">Original</div>
+              <div className="overflow-hidden rounded-[1.35rem] border border-zinc-800 bg-zinc-950/70">
+                <div className="border-b border-zinc-800 px-4 py-2.5 text-xs uppercase tracking-[0.22em] text-zinc-500">Original</div>
                 <img src={resolveAssetUrl(upload.original_url)} alt="Original portrait" className="aspect-[4/5] w-full object-cover" />
               </div>
-              <div className="overflow-hidden rounded-[1.5rem] border border-zinc-800 bg-zinc-950/70">
-                <div className="border-b border-zinc-800 px-4 py-3 text-xs uppercase tracking-[0.22em] text-zinc-500">Preview</div>
+              <div className="overflow-hidden rounded-[1.35rem] border border-zinc-800 bg-zinc-950/70">
+                <div className="border-b border-zinc-800 px-4 py-2.5 text-xs uppercase tracking-[0.22em] text-zinc-500">Preview</div>
                 <div className="relative">
-                  <img src={resolveAssetUrl(featured.url)} alt={featured.title} className="aspect-[4/5] w-full object-cover" />
+                  <img
+                    key={featured.url}
+                    src={resolveAssetUrl(featured.url)}
+                    alt={featured.title}
+                    className="aspect-[4/5] w-full object-cover"
+                    onError={() => setPreviewLoadFailed(true)}
+                    onLoad={() => setPreviewLoadFailed(false)}
+                  />
                   <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-zinc-950/35 via-transparent to-zinc-950/10" />
                   <Sparkles className="absolute right-5 top-5 animate-pulse text-amber-200/70" size={16} />
+                  {previewLoadFailed ? (
+                    <div className="absolute inset-0 flex items-center justify-center bg-zinc-950/88 px-6 text-center text-sm text-zinc-300">
+                      Preview could not be loaded. Try generating again to refresh the result image.
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>
           </div>
 
           <div className="space-y-6">
-            <section className="rounded-[2rem] border border-zinc-800 bg-zinc-900/60 p-5 md:p-6">
+            <section className="rounded-[1.8rem] border border-zinc-800 bg-zinc-900/60 p-4 md:p-5">
               <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">Curated Variations</p>
-              <div className="mt-5 grid gap-3">
+              <div className="mt-4 grid gap-3">
                 {results.results.map((result, index) => (
                   <button
                     key={result.url}
                     onClick={() => setActiveLook(index)}
-                    className={`rounded-[1.3rem] border px-4 py-4 text-left transition-all duration-300 ${
+                    className={`rounded-[1.2rem] border px-4 py-3.5 text-left transition-all duration-300 ${
                       activeLook === index ? "border-amber-200/60 bg-amber-200/8" : "border-zinc-800 bg-zinc-950/40 hover:border-zinc-700"
                     }`}
                   >
-                    <p className="font-serif text-xl text-zinc-100">{lookLabels[index]?.label ?? result.title}</p>
-                    <p className="mt-2 text-sm leading-6 text-zinc-400">{lookLabels[index]?.desc ?? result.title}</p>
+                    <p className="font-serif text-lg text-zinc-100">{lookLabels[index]?.label ?? result.title}</p>
+                    <p className="mt-1.5 text-sm leading-5 text-zinc-400">{lookLabels[index]?.desc ?? result.title}</p>
                   </button>
                 ))}
               </div>
             </section>
 
-            <section className="rounded-[2rem] border border-zinc-800 bg-zinc-900/60 p-5 md:p-6">
+            <section className="rounded-[1.8rem] border border-zinc-800 bg-zinc-900/60 p-4 md:p-5">
               <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">Actions</p>
-              <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row">
                 <button
                   onClick={() => setIsRefineOpen(true)}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-full border border-zinc-700 px-5 py-4 text-sm uppercase tracking-widest text-zinc-200 transition-colors hover:border-zinc-600 hover:bg-zinc-800"
+                  className="flex flex-1 items-center justify-center gap-2 rounded-full border border-zinc-700 px-5 py-3.5 text-sm uppercase tracking-[0.18em] text-zinc-200 transition-colors hover:border-zinc-600 hover:bg-zinc-800"
                 >
                   <SlidersHorizontal size={14} />
                   Refine
@@ -143,14 +156,14 @@ export function ResultsPage() {
                 <a
                   href={resolveAssetUrl(featured.url)}
                   download
-                  className="flex flex-1 items-center justify-center gap-2 rounded-full bg-zinc-100 px-5 py-4 text-sm uppercase tracking-widest text-zinc-900 transition-colors hover:bg-white"
+                  className="flex flex-1 items-center justify-center gap-2 rounded-full bg-zinc-100 px-5 py-3.5 text-sm uppercase tracking-[0.18em] text-zinc-900 transition-colors hover:bg-white"
                 >
                   <Download size={14} />
                   Download
                 </a>
                 <Link
                   to="/studio"
-                  className="flex flex-1 items-center justify-center gap-2 rounded-full border border-zinc-700 px-5 py-4 text-sm uppercase tracking-widest text-zinc-200 transition-colors hover:border-zinc-600 hover:bg-zinc-800"
+                  className="flex flex-1 items-center justify-center gap-2 rounded-full border border-zinc-700 px-5 py-3.5 text-sm uppercase tracking-[0.18em] text-zinc-200 transition-colors hover:border-zinc-600 hover:bg-zinc-800"
                 >
                   <MessageSquare size={14} />
                   Try Another

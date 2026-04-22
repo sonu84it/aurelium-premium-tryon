@@ -73,8 +73,8 @@ class LandmarkService:
             "right_ear": (int(face_box.x + face_box.width * 0.9), int(face_box.y + face_box.height * 0.55)),
             "nose_left": (int(face_box.x + face_box.width * 0.42), int(face_box.y + face_box.height * 0.62)),
             "nose_right": (int(face_box.x + face_box.width * 0.58), int(face_box.y + face_box.height * 0.62)),
-            "neck_center": (int(width * 0.5), int(face_box.y2 + height * 0.08)),
-            "chest_center": (int(width * 0.5), int(face_box.y2 + height * 0.18)),
+            "neck_center": (int(width * 0.5), int(face_box.y2 + height * 0.12)),
+            "chest_center": (int(width * 0.5), int(face_box.y2 + height * 0.27)),
         }
         if hand_present:
             hand_box = box_from_center(width * 0.7, height * 0.74, width * 0.16, height * 0.16, (width, height))
