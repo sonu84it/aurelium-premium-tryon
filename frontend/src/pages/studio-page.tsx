@@ -27,6 +27,7 @@ export function StudioPage() {
   const [activeLook, setActiveLook] = useState(0);
   const [lastRequest, setLastRequest] = useState<GenerateRequest | null>(null);
   const [isAppendingVariation, setIsAppendingVariation] = useState(false);
+  const [analysisProgress, setAnalysisProgress] = useState(0);
   const resultsRef = useRef<HTMLElement | null>(null);
 
   const categoryOptions: Array<{ id: JewelleryType; label: string; Icon: typeof Gem; description: string }> = [
@@ -56,19 +57,39 @@ export function StudioPage() {
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
       setPreviewUrl(URL.createObjectURL(file));
+      setAnalysisProgress(12);
       const uploadResponse = await uploadPortrait(file);
+      setAnalysisProgress(56);
       const analysisResponse = await analyzePortrait(uploadResponse.image_id);
+      setAnalysisProgress(100);
       return { uploadResponse, analysisResponse };
     },
     onSuccess: ({ uploadResponse, analysisResponse }) => {
       setUpload(uploadResponse);
       setAnalysis(analysisResponse);
       setPreviewUrl(resolveAssetUrl(uploadResponse.original_url));
+      window.setTimeout(() => setAnalysisProgress(0), 500);
       if (analysisResponse.detectedInfo.faces !== 1) {
         navigate("/unsupported");
       }
     },
+    onError: () => {
+      setAnalysisProgress(0);
+    },
   });
+
+  useEffect(() => {
+    if (!uploadMutation.isPending) return;
+
+    const timer = window.setInterval(() => {
+      setAnalysisProgress((current) => {
+        if (current >= 92) return current;
+        return current + Math.max(2, Math.round((100 - current) * 0.08));
+      });
+    }, 280);
+
+    return () => window.clearInterval(timer);
+  }, [uploadMutation.isPending]);
 
   const generateMutation = useMutation({
     mutationFn: (payload: GenerateRequest) => generatePreview(payload),
@@ -259,9 +280,28 @@ export function StudioPage() {
               <p className="mt-2 text-sm leading-6 text-zinc-400">
                 Aurelium will create one refined premium preview based on your portrait, chosen category, and style direction.
               </p>
+              {uploadMutation.isPending ? (
+                <div className="mt-5 rounded-[1.2rem] border border-amber-200/20 bg-amber-200/5 px-4 py-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.18em] text-amber-200/80">Preparing Portrait</p>
+                      <p className="mt-1 text-sm leading-6 text-zinc-400">
+                        Uploading and analyzing your image. Generate Output will unlock in a few seconds.
+                      </p>
+                    </div>
+                    <span className="text-sm text-zinc-300">{analysisProgress}%</span>
+                  </div>
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-zinc-800">
+                    <div
+                      className="h-full rounded-full bg-[linear-gradient(90deg,rgba(217,177,103,0.65),rgba(255,239,198,0.95))] transition-all duration-300"
+                      style={{ width: `${analysisProgress}%` }}
+                    />
+                  </div>
+                </div>
+              ) : null}
               <button
                 onClick={generateLooks}
-                disabled={!upload?.image_id || generateMutation.isPending}
+                disabled={!upload?.image_id || uploadMutation.isPending || generateMutation.isPending}
                 className="mt-5 inline-flex w-full items-center justify-center gap-3 rounded-full bg-zinc-100 px-6 py-3.5 text-sm font-medium uppercase tracking-[0.2em] text-zinc-900 transition-all duration-300 hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {generateMutation.isPending ? <Sparkles size={16} className="animate-pulse" /> : <ChevronRight size={16} />}

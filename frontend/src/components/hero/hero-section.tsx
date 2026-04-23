@@ -22,12 +22,15 @@ export function HeroSection() {
         </div>
         <div className="grid gap-4 md:grid-cols-[1.05fr_0.95fr]">
           <div className="relative overflow-hidden rounded-[2rem] border border-zinc-800/80 bg-[radial-gradient(circle_at_top,#5f4a34_0%,#241b14_48%,#0b0b0c_100%)] p-4">
-            <div className="relative aspect-[4/5] overflow-hidden rounded-[1.5rem] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(0,0,0,0.28))]">
-              <div className="absolute left-[10%] top-[12%] h-10 w-10 rounded-full border border-amber-200/20 bg-amber-200/10" />
-              <div className="absolute right-[12%] top-[16%] h-24 w-24 rounded-full border border-zinc-100/10 bg-zinc-100/5 blur-xl" />
-              <div className="absolute inset-x-[24%] top-[16%] h-[34%] rounded-[999px] bg-[linear-gradient(180deg,#f0d6bd,#c79273)] opacity-75" />
-              <div className="absolute inset-x-[20%] bottom-[12%] h-[30%] rounded-t-[2.5rem] bg-[linear-gradient(180deg,#efe3cf,#d5b992)] opacity-85" />
-              <div className="absolute inset-x-[34%] top-[42%] h-3 rounded-full bg-amber-200/40 blur-sm" />
+            <div className="relative aspect-[4/5] overflow-hidden rounded-[1.5rem] border border-white/8 bg-zinc-950">
+              <img
+                src="/static/HomePage.png"
+                alt="Aurelium luxury portrait"
+                className="h-full w-full object-cover object-center"
+              />
+              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(9,9,11,0.06),rgba(9,9,11,0.28))]" />
+              <div className="absolute left-[8%] top-[10%] h-16 w-16 rounded-full bg-amber-100/8 blur-2xl" />
+              <div className="absolute bottom-[8%] right-[8%] h-24 w-24 rounded-full bg-amber-200/10 blur-3xl" />
             </div>
           </div>
           <div className="flex flex-col justify-between rounded-[2rem] border border-zinc-800 bg-zinc-900/80 p-6 text-left text-zinc-100">
