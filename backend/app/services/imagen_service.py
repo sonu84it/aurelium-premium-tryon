@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List
 
+import cv2
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 
