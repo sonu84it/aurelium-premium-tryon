@@ -11,7 +11,7 @@ interface AureliumState {
   selectedStone: StoneType;
   setUpload: (upload: UploadResponse) => void;
   setAnalysis: (analysis: AnalyzeResponse) => void;
-  setResults: (results: GenerateResponse) => void;
+  setResults: (results?: GenerateResponse) => void;
   setSelectedCategory: (category: JewelleryType) => void;
   setSelectedMetal: (metal: MetalType) => void;
   setSelectedStone: (stone: StoneType) => void;

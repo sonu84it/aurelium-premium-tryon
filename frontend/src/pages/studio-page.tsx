@@ -25,6 +25,8 @@ export function StudioPage() {
   const [previewUrl, setPreviewUrl] = useState<string | undefined>(upload?.original_url ? resolveAssetUrl(upload.original_url) : undefined);
   const [selectedStyle, setSelectedStyle] = useState<StyleType>("signature_minimal");
   const [activeLook, setActiveLook] = useState(0);
+  const [lastRequest, setLastRequest] = useState<GenerateRequest | null>(null);
+  const [isAppendingVariation, setIsAppendingVariation] = useState(false);
   const resultsRef = useRef<HTMLElement | null>(null);
 
   const categoryOptions: Array<{ id: JewelleryType; label: string; Icon: typeof Gem; description: string }> = [
@@ -71,8 +73,20 @@ export function StudioPage() {
   const generateMutation = useMutation({
     mutationFn: (payload: GenerateRequest) => generatePreview(payload),
     onSuccess: (response) => {
-      setResults(response);
-      setActiveLook(0);
+      if (isAppendingVariation && results?.results?.length) {
+        setResults({
+          job_id: response.job_id,
+          results: [...results.results, ...response.results],
+        });
+        setActiveLook(results.results.length);
+      } else {
+        setResults(response);
+        setActiveLook(0);
+      }
+      setIsAppendingVariation(false);
+    },
+    onError: () => {
+      setIsAppendingVariation(false);
     },
   });
 
@@ -82,12 +96,12 @@ export function StudioPage() {
     }
   }, [results]);
 
-  const generateLooks = () => {
-    if (!upload?.image_id) return;
+  const buildRequest = (): GenerateRequest | null => {
+    if (!upload?.image_id) return null;
     const category = selectedCategory || "earrings";
-    if (!upload?.image_id) return;
+    if (!upload?.image_id) return null;
     const defaults = categoryDefaults[category];
-    generateMutation.mutate({
+    return {
       image_id: upload.image_id,
       jewelleryType: category,
       metal: selectedMetal,
@@ -99,8 +113,25 @@ export function StudioPage() {
         side: "left",
         finger: "ring",
       },
-      variants: 3,
-    });
+      variants: 1,
+    };
+  };
+
+  const generateLooks = () => {
+    const payload = buildRequest();
+    if (!payload) return;
+    setIsAppendingVariation(false);
+    setLastRequest(payload);
+    setResults(undefined);
+    generateMutation.mutate(payload);
+  };
+
+  const generateAnotherVariation = () => {
+    const payload = lastRequest ?? buildRequest();
+    if (!payload) return;
+    setIsAppendingVariation(true);
+    setLastRequest(payload);
+    generateMutation.mutate(payload);
   };
 
   const activeResult = results?.results?.[activeLook] ?? results?.results?.[0];
@@ -226,7 +257,7 @@ export function StudioPage() {
               <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">Step 4</p>
               <h2 className="mt-2 font-serif text-xl text-zinc-100 md:text-2xl">Generate your looks</h2>
               <p className="mt-2 text-sm leading-6 text-zinc-400">
-                Aurelium will create a small curated set of premium previews based on your portrait, chosen category, and style direction.
+                Aurelium will create one refined premium preview based on your portrait, chosen category, and style direction.
               </p>
               <button
                 onClick={generateLooks}
@@ -234,7 +265,7 @@ export function StudioPage() {
                 className="mt-5 inline-flex w-full items-center justify-center gap-3 rounded-full bg-zinc-100 px-6 py-3.5 text-sm font-medium uppercase tracking-[0.2em] text-zinc-900 transition-all duration-300 hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {generateMutation.isPending ? <Sparkles size={16} className="animate-pulse" /> : <ChevronRight size={16} />}
-                {generateMutation.isPending ? "Generating Looks" : "Generate Output"}
+                {generateMutation.isPending && !isAppendingVariation ? "Generating Preview" : "Generate Output"}
               </button>
               {generateMutation.error ? <p className="mt-4 text-sm text-red-400">{String(generateMutation.error)}</p> : null}
             </section>
@@ -271,6 +302,15 @@ export function StudioPage() {
                         <p className="mt-1 text-sm leading-5 text-zinc-400">Variation {index + 1} for your selected category and style.</p>
                       </button>
                     ))}
+                    <button
+                      type="button"
+                      onClick={generateAnotherVariation}
+                      disabled={generateMutation.isPending}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-zinc-700 px-5 py-3.5 text-sm uppercase tracking-[0.18em] text-zinc-200 transition-colors hover:border-zinc-500 hover:bg-zinc-800/60 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {generateMutation.isPending && isAppendingVariation ? <Sparkles size={14} className="animate-pulse" /> : <ChevronRight size={14} />}
+                      {generateMutation.isPending && isAppendingVariation ? "Generating Variation" : "Generate Another Variation"}
+                    </button>
                     <a
                       href={resolveAssetUrl(activeResult.url)}
                       download

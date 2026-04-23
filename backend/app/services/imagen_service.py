@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import random
 import tempfile
 import uuid
 from io import BytesIO
@@ -140,14 +141,15 @@ class VertexImagenEditor(ImageEditorProvider):
         )
 
         instruction = (
-            f"{prompt} Use the second image as a strict edit mask guide: only modify the white highlighted region, "
-            "keep all other pixels unchanged, and produce a realistic luxury jewellery edit with natural materials, "
+            f"{prompt} Use the second image only as a hidden edit-region guide. Only modify the softly highlighted region, "
+            "keep all other pixels unchanged, and do not reproduce any guide marks, arcs, lines, anchors, halos, or placeholder shapes "
+            "from the guide image in the final output. Produce a realistic luxury jewellery edit with natural materials, "
             "shadow, perspective, and reflections."
         )
 
         outputs: List[EditResult] = []
         for index in range(request.variants):
-            seed = (abs(hash((request.image_id, request.jewelleryType.value, request.style.value, index))) % 10_000_000) + 1
+            seed = random.randint(1, 999_999_999)
             try:
                 response = client.models.generate_content(
                     model=self.settings.vertex_imagen_edit_model,
@@ -170,12 +172,22 @@ class VertexImagenEditor(ImageEditorProvider):
 
     @staticmethod
     def _mask_hint_image(size: tuple[int, int], mask: Image.Image) -> Image.Image:
-        grayscale = mask.convert("L").resize(size)
-        rgba = Image.new("RGBA", size, (0, 0, 0, 255))
-        rgba.putalpha(grayscale)
-        overlay = Image.new("RGBA", size, (255, 255, 255, 0))
-        overlay.putalpha(grayscale)
-        return Image.alpha_composite(rgba, overlay).convert("RGB")
+        grayscale = np.array(mask.convert("L").resize(size))
+        ys, xs = np.where(grayscale > 10)
+        guide = np.zeros((size[1], size[0]), dtype=np.uint8)
+
+        if len(xs) == 0 or len(ys) == 0:
+            return Image.fromarray(guide, mode="L").convert("RGB")
+
+        x1, x2 = xs.min(), xs.max()
+        y1, y2 = ys.min(), ys.max()
+        cx = int((x1 + x2) / 2)
+        cy = int((y1 + y2) / 2)
+        half_w = max(18, int((x2 - x1) * 0.75))
+        half_h = max(18, int((y2 - y1) * 0.95))
+        cv2.ellipse(guide, (cx, cy), (half_w, half_h), 0, 0, 360, 255, -1)
+        guide = cv2.GaussianBlur(guide, (0, 0), sigmaX=18.0, sigmaY=18.0)
+        return Image.fromarray(guide, mode="L").convert("RGB")
 
     @staticmethod
     def _extract_gemini_image(response: object) -> Image.Image | None:
